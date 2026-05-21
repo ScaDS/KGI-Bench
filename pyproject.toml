@@ -1,0 +1,114 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "kgi-bench"
+version = "1.0.0"
+description = "Knowledge Graph Integration Benchmark"
+authors = [
+    {name = "Marvin Hofer", email = "hofer@informatik.uni-leipzig.de"}
+]
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "kgcore @ git+https://github.com/Vehnem/kgcore.git",
+    "kgcore @ git+https://github.com/ScaDS/KGpipe.git",
+]
+
+[project.optional-dependencies]
+dev = ["pytest", "pytest-mock", "pytest-cov", "ruff", "black"]
+cpu = [
+    "torch",
+    "torchvision",
+    "torchaudio",
+]
+cuda = [
+    "torch",
+    "torchvision",
+    "torchaudio",
+]
+ml = [
+    "transformers>=4.50.0",
+    "sentence_transformers>=4.1.0",
+]
+
+[tool.uv]
+conflicts = [
+    [
+        { extra = "cpu" },
+        { extra = "cuda" },
+    ],
+]
+
+[tool.uv.sources]
+torch = [
+    { index = "pytorch-cpu", extra = "cpu" },
+    { index = "pytorch-cuda", extra = "cuda" },
+]
+torchvision = [
+    { index = "pytorch-cpu", extra = "cpu" },
+    { index = "pytorch-cuda", extra = "cuda" },
+]
+torchaudio = [
+    { index = "pytorch-cpu", extra = "cpu" },
+    { index = "pytorch-cuda", extra = "cuda" },
+]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+# CUDA wheels live on a separate PyTorch index.
+# If you need a different CUDA version, change the URL (e.g. `cu128`, `cu126`, `cu121`).
+[[tool.uv.index]]
+name = "pytorch-cuda"
+url = "https://download.pytorch.org/whl/cu130"
+explicit = true
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["kgpipe*"]
+
+[tool.setuptools.package-dir]
+"" = "src" 
+
+[tool.setuptools.package-data]
+kgpipe = ["*.yaml", "*.yml"]
+
+[project.scripts]
+kgpipe = "kgpipe.cli.main:cli"
+
+[tool.coverage.run]
+source = ["src/kgpipe"]
+omit = [
+    "*/tests/*",
+    "*/test_*",
+    "*/__pycache__/*",
+    "*/venv/*",
+    "*/env/*",
+    "*/.venv/*",
+    "*/.env/*",
+    "setup.py",
+    "conftest.py"
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if self.debug:",
+    "if settings.DEBUG",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if 0:",
+    "if __name__ == .__main__.:",
+    "class .*\\bProtocol\\):",
+    "@\\(abc\\.\\)\\?abstractmethod",
+    "pass",
+    "raise ImportError"
+]
+
+[tool.coverage.html]
+directory = "htmlcov"
