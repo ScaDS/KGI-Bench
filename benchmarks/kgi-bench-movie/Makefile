@@ -4,73 +4,33 @@ DATASET_URL := https://zenodo.org/record/17246358/files/inc_movie_kg_datasets.ta
 RESULTS_URL := https://zenodo.org/record/17246358/files/inc_movie_kg_results.tar.gz?download=1
 BASE_DIR := ./data
 
+# === Helpers ===
+
+# Load env vars from `.env` (preferred) or `env` (fallback).
+# Usage:
+#   $(LOAD_ENV) <command>
+LOAD_ENV = bash -lc 'set -a; if [ -f .env ]; then . .env; elif [ -f env ]; then . ./env; fi; set +a; '
+
+# Convenience variables inside recipes (after LOAD_ENV):
+# - OUTPUT_ROOT = $${OUTPUT_DIR}/$${DATASET_SELECT}
+# - BENCH_DATA  = dataset root for the selected size
+
 # === Main ===
 
-setup_docker: download-datasets kgpipe_docker kgtools start-services
-
-run_docker_small:
-	bash ../../scripts/moviekg_docker.sh $(BASE_DIR) docker.env
-
-pipelines:
-	pytest -v src/moviekg/pipelines/ -k "not llm"
-
-pipelines-llm:
-	pytest -v src/moviekg/pipelines/ -k "llm"
-
 evaluation:
-	pytest -v src/moviekg/evaluation/ -k "not llm"
-
-paper:
-	pytest -v src/moviekg/evaluation/test_inc_msp_evaluation.py -k concat;
-	pytest -v src/moviekg/paper/test_figtab.py;
-
-# === Docker ===
-
-$(BASE_DIR)/.kgpipe-docker-built:
-	@cd ../.. && make docker_build
-	touch $@
-
-kgpipe_docker: $(BASE_DIR)/.kgpipe-docker-built
-
-$(BASE_DIR)/kgtools/README.md:
-	@cd $(BASE_DIR) && git clone https://github.com/vehnem/kg-tools.git kgtools
-
-$(BASE_DIR)/kgtools/.paris-docker-built	:
-	@cd $(BASE_DIR)/kgtools/paris && make docker_build
-	touch $@
-
-$(BASE_DIR)/kgtools/.valentine-docker-built:
-	@cd $(BASE_DIR)/kgtools/valentine && make docker_build
-	touch $@
-
-$(BASE_DIR)/kgtools/.pyjedai-docker-built:
-	@cd $(BASE_DIR)/kgtools/pyjedai && make docker_build
-	touch $@
-
-$(BASE_DIR)/kgtools/.corenlp-docker-built:
-	@cd $(BASE_DIR)/kgtools/corenlp && make docker_build
-	touch $@
-
-$(BASE_DIR)/kgtools/.dbpedia-spotlight-docker-built:
-	@cd $(BASE_DIR)/kgtools/dbpedia-spotlight && make docker_build
-	touch $@
-
-$(BASE_DIR)/kgtools/.docker-built: $(BASE_DIR)/kgtools/.paris-docker-built $(BASE_DIR)/kgtools/.valentine-docker-built $(BASE_DIR)/kgtools/.pyjedai-docker-built $(BASE_DIR)/kgtools/.corenlp-docker-built $(BASE_DIR)/kgtools/.dbpedia-spotlight-docker-built
-	touch $@
-
-kgtools_clone: $(BASE_DIR)/kgtools/README.md
-
-kgtools_docker: $(BASE_DIR)/kgtools/.docker-built
-
-kgtools: kgtools_clone kgtools_docker
-
-# === Setup ===
-
-start-services:
-	@cd ../../ && docker compose up -d
-
-clean:
-	rm -rf data;
+	@$(LOAD_ENV) ' \
+	  OUTPUT_ROOT="$$OUTPUT_DIR/$$DATASET_SELECT"; \
+	  if [ "$$DATASET_SELECT" = "small" ]; then BENCH_DATA="$$DATASET_SMALL"; \
+	  elif [ "$$DATASET_SELECT" = "medium" ]; then BENCH_DATA="$$DATASET_MEDIUM"; \
+	  elif [ "$$DATASET_SELECT" = "large" ]; then BENCH_DATA="$$DATASET_LARGE"; \
+	  else echo "Invalid DATASET_SELECT=$$DATASET_SELECT"; exit 1; fi; \
+	  echo "Evaluating all pipelines under $$OUTPUT_ROOT"; \
+	  for d in "$$OUTPUT_ROOT"/*; do \
+	    [ -d "$$d" ] || continue; \
+	    echo "==> $$d"; \
+	    kgibench evaluate --benchmark movie --bench-data "$$BENCH_DATA" "$$d"; \
+	  done \
+	'
 
 # === Dataset ===
 
@@ -88,98 +48,122 @@ download-datasets: $(BASE_DIR)/datasets/.extracted
 datasets-eval:
 	pytest -v src/moviekg/datasets/test_evaluate_film_data.py
 
-# === SSPs ===
-
-test-ssp-all:
-	time pytest -s -v src/moviekg/pipelines/test_inc_ssp.py
-
-eval-ssp-all:
-	time pytest -s -v src/moviekg/evaluation/test_inc_ssp_evaluation.py
-
-test-ssp-classic:
-	time pytest -s -v src/moviekg/pipelines/test_inc_ssp.py -k "not llm_"
-
-test-ssp-llm:
-	time pytest -s -v src/moviekg/pipelines/test_inc_ssp.py -k "llm_"
-
-eval-ssp-llm:
-	time pytest -s -v src/moviekg/evaluation/test_inc_ssp_evaluation.py -k "llm_"
-
 # === RDF ===
 
-test-rdf-a:
-	pytest -s -v src/moviekg/pipelines/test_inc_ssp.py -k rdf_a
+eval-rdf-base:
+	@$(LOAD_ENV) ' \
+	  OUTPUT_ROOT="$$OUTPUT_DIR/$$DATASET_SELECT"; \
+	  if [ "$$DATASET_SELECT" = "small" ]; then BENCH_DATA="$$DATASET_SMALL"; \
+	  elif [ "$$DATASET_SELECT" = "medium" ]; then BENCH_DATA="$$DATASET_MEDIUM"; \
+	  elif [ "$$DATASET_SELECT" = "large" ]; then BENCH_DATA="$$DATASET_LARGE"; \
+	  else echo "Invalid DATASET_SELECT=$$DATASET_SELECT"; exit 1; fi; \
+	  pytest -v -s src/moviekg/evaluation/test_eval_refactor.py -k "rdf_base"
+	'
 
-eval-rdf-a:
-	pytest -s -v src/moviekg/evaluation/test_inc_ssp_evaluation.py -k rdf_a
+eval-rdf-alt:
+	@$(LOAD_ENV) ' \
+	  OUTPUT_ROOT="$$OUTPUT_DIR/$$DATASET_SELECT"; \
+	  if [ "$$DATASET_SELECT" = "small" ]; then BENCH_DATA="$$DATASET_SMALL"; \
+	  elif [ "$$DATASET_SELECT" = "medium" ]; then BENCH_DATA="$$DATASET_MEDIUM"; \
+	  elif [ "$$DATASET_SELECT" = "large" ]; then BENCH_DATA="$$DATASET_LARGE"; \
+	  else echo "Invalid DATASET_SELECT=$$DATASET_SELECT"; exit 1; fi; \
+	  pytest -v -s src/moviekg/evaluation/test_eval_refactor.py -k "rdf_alt"
+	'
 
-test-rdf-b:
-	pytest -s -v src/moviekg/pipelines/test_inc_ssp.py -k rdf_b
-
-eval-rdf-b:
-	pytest -s -v src/moviekg/evaluation/test_inc_ssp_evaluation.py -k rdf_b
-
-test-rdf-c:
-	pytest -s -v src/moviekg/pipelines/test_inc_ssp.py -k rdf_llm
-
-eval-rdf-c:
-	pytest -s -v src/moviekg/evaluation/test_inc_ssp_evaluation.py -k rdf_llm
+eval-rdf-llm:
+	@$(LOAD_ENV) ' \
+	  OUTPUT_ROOT="$$OUTPUT_DIR/$$DATASET_SELECT"; \
+	  if [ "$$DATASET_SELECT" = "small" ]; then BENCH_DATA="$$DATASET_SMALL"; \
+	  elif [ "$$DATASET_SELECT" = "medium" ]; then BENCH_DATA="$$DATASET_MEDIUM"; \
+	  elif [ "$$DATASET_SELECT" = "large" ]; then BENCH_DATA="$$DATASET_LARGE"; \
+	  else echo "Invalid DATASET_SELECT=$$DATASET_SELECT"; exit 1; fi; \
+	  pytest -v -s src/moviekg/evaluation/test_eval_refactor.py -k "rdf_llm"
+	'
 
 # === JSON ===
 
-test-json-a:
-	pytest -s -v src/moviekg/pipelines/test_inc_ssp.py -k json_a
+eval-json-base:
+	@$(LOAD_ENV) ' \
+	  OUTPUT_ROOT="$$OUTPUT_DIR/$$DATASET_SELECT"; \
+	  if [ "$$DATASET_SELECT" = "small" ]; then BENCH_DATA="$$DATASET_SMALL"; \
+	  elif [ "$$DATASET_SELECT" = "medium" ]; then BENCH_DATA="$$DATASET_MEDIUM"; \
+	  elif [ "$$DATASET_SELECT" = "large" ]; then BENCH_DATA="$$DATASET_LARGE"; \
+	  else echo "Invalid DATASET_SELECT=$$DATASET_SELECT"; exit 1; fi; \
+	  pytest -v -s src/moviekg/evaluation/test_eval_refactor.py -k "json_base"
+	'
 
-eval-json-a:
-	pytest -s -v src/moviekg/evaluation/test_inc_ssp_evaluation.py -k json_a
+eval-json-alt:
+	@$(LOAD_ENV) ' \
+	  OUTPUT_ROOT="$$OUTPUT_DIR/$$DATASET_SELECT"; \
+	  if [ "$$DATASET_SELECT" = "small" ]; then BENCH_DATA="$$DATASET_SMALL"; \
+	  elif [ "$$DATASET_SELECT" = "medium" ]; then BENCH_DATA="$$DATASET_MEDIUM"; \
+	  elif [ "$$DATASET_SELECT" = "large" ]; then BENCH_DATA="$$DATASET_LARGE"; \
+	  else echo "Invalid DATASET_SELECT=$$DATASET_SELECT"; exit 1; fi; \
+	  pytest -v -s src/moviekg/evaluation/test_eval_refactor.py -k "json_alt"
+	'
 
-test-json-b:
-	pytest -s -v src/moviekg/pipelines/test_inc_ssp.py -k json_b
-
-eval-json-b:
-	pytest -s -v src/moviekg/evaluation/test_inc_ssp_evaluation.py -k json_b
-
-test-json-c:
-	pytest -v -s src/moviekg/pipelines/test_inc_ssp.py -k json_llm
-
-eval-json-c:
-	pytest -s -v src/moviekg/evaluation/test_inc_ssp_evaluation.py -k json_llm
+eval-json-llm:
+	@$(LOAD_ENV) ' \
+	  OUTPUT_ROOT="$$OUTPUT_DIR/$$DATASET_SELECT"; \
+	  if [ "$$DATASET_SELECT" = "small" ]; then BENCH_DATA="$$DATASET_SMALL"; \
+	  elif [ "$$DATASET_SELECT" = "medium" ]; then BENCH_DATA="$$DATASET_MEDIUM"; \
+	  elif [ "$$DATASET_SELECT" = "large" ]; then BENCH_DATA="$$DATASET_LARGE"; \
+	  else echo "Invalid DATASET_SELECT=$$DATASET_SELECT"; exit 1; fi; \
+	  pytest -v -s src/moviekg/evaluation/test_eval_refactor.py -k "json_llm"
+	'
 
 # === TEXT ===
 
-test-text-a:
-	pytest -s -v src/moviekg/pipelines/test_inc_ssp.py -k text_a
+eval-text-base:
+	@$(LOAD_ENV) ' \
+	  OUTPUT_ROOT="$$OUTPUT_DIR/$$DATASET_SELECT"; \
+	  if [ "$$DATASET_SELECT" = "small" ]; then BENCH_DATA="$$DATASET_SMALL"; \
+	  elif [ "$$DATASET_SELECT" = "medium" ]; then BENCH_DATA="$$DATASET_MEDIUM"; \
+	  elif [ "$$DATASET_SELECT" = "large" ]; then BENCH_DATA="$$DATASET_LARGE"; \
+	  else echo "Invalid DATASET_SELECT=$$DATASET_SELECT"; exit 1; fi; \
+	  pytest -v -s src/moviekg/evaluation/test_eval_refactor.py -k "text_a"
+	'
 
-eval-text-a:
-	pytest -s -v src/moviekg/evaluation/test_inc_ssp_evaluation.py -k text_a
+eval-text-alt:
+	@$(LOAD_ENV) ' \
+	  OUTPUT_ROOT="$$OUTPUT_DIR/$$DATASET_SELECT"; \
+	  if [ "$$DATASET_SELECT" = "small" ]; then BENCH_DATA="$$DATASET_SMALL"; \
+	  elif [ "$$DATASET_SELECT" = "medium" ]; then BENCH_DATA="$$DATASET_MEDIUM"; \
+	  elif [ "$$DATASET_SELECT" = "large" ]; then BENCH_DATA="$$DATASET_LARGE"; \
+	  else echo "Invalid DATASET_SELECT=$$DATASET_SELECT"; exit 1; fi; \
+	  pytest -v -s src/moviekg/evaluation/test_eval_refactor.py -k "text_b"
+	'
 
-test-text-b:
-	pytest -s -v src/moviekg/pipelines/test_inc_ssp.py -k text_b
-
-eval-text-b:
-	pytest -s -v src/moviekg/evaluation/test_inc_ssp_evaluation.py -k text_b
-
-test-text-c:
-	pytest -s -v src/moviekg/pipelines/test_inc_ssp.py -k text_llm
-
-eval-text-c:
-	pytest -s -v src/moviekg/evaluation/test_inc_ssp_evaluation.py -k text_llm
+eval-text-llm:
+	@$(LOAD_ENV) ' \
+	  OUTPUT_ROOT="$$OUTPUT_DIR/$$DATASET_SELECT"; \
+	  if [ "$$DATASET_SELECT" = "small" ]; then BENCH_DATA="$$DATASET_SMALL"; \
+	  elif [ "$$DATASET_SELECT" = "medium" ]; then BENCH_DATA="$$DATASET_MEDIUM"; \
+	  elif [ "$$DATASET_SELECT" = "large" ]; then BENCH_DATA="$$DATASET_LARGE"; \
+	  else echo "Invalid DATASET_SELECT=$$DATASET_SELECT"; exit 1; fi; \
+	  pytest -v -s src/moviekg/evaluation/test_eval_refactor.py -k "text_c" \
+	'
 
 # === MSPs ===
 
-test-msp-all:
-	pytest -s -v src/moviekg/pipelines/test_inc_msp.py
-
 eval-msp-all:
-	pytest -s -v src/moviekg/evaluation/test_inc_msp_evaluation.py
+	@$(LOAD_ENV) ' \
+	  OUTPUT_ROOT="$$OUTPUT_DIR/$$DATASET_SELECT"; \
+	  if [ "$$DATASET_SELECT" = "small" ]; then BENCH_DATA="$$DATASET_SMALL"; \
+	  elif [ "$$DATASET_SELECT" = "medium" ]; then BENCH_DATA="$$DATASET_MEDIUM"; \
+	  elif [ "$$DATASET_SELECT" = "large" ]; then BENCH_DATA="$$DATASET_LARGE"; \
+	  else echo "Invalid DATASET_SELECT=$$DATASET_SELECT"; exit 1; fi; \
+	  echo "Evaluating all MSP pipelines under $$OUTPUT_ROOT (dirs with two underscores)"; \
+	  pytest -v -s src/moviekg/evaluation/test_eval_refactor.py -k "test_evaluate_new_multisource_pipeline"; \
+	'
 
-eval-msp-rjt:
-	pytest -s -v src/moviekg/evaluation/test_inc_msp_evaluation.py -k rdf-json-text
 
-# === Paper ===
+# === Paper (legacy)
+#
+# Paper artifacts are currently driven by the legacy CSV aggregation workflow.
+# Keep these targets only if you still rely on `all_metrics.csv`.
 
-concatenate-metrics:
-	pytest -s -v src/moviekg/evaluation/test_inc_ssp_evaluation.py -k test_concatenate_long_table_rows
+# === Paper (new)
 
-paper-figtab:
-	pytest -s -v src/moviekg/paper/test_figtab.py
+eval-paper-new:
+	pytest -v -s src/moviekg/paper/test_paper_content.py

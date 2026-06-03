@@ -252,7 +252,7 @@ data/results/small/
 │   │   ├── exec-plan.json
 │   │   └── exec-report.json
 ├── json_a/ …
-├── rjt/ …          # MSP pipelines (e.g. RDF→JSON→Text)
+├── rdf_json_text/ … text_json_rdf/         # MSP pipelines (e.g. RDF→JSON→Text)
 └── paper/
     ├── test_fig*.png
     └── test_tab*.png

@@ -13,8 +13,8 @@ import pandas as pd
 import pandas as pd
 from typing import List, Optional
 
-from moviekg.paper.config import HEADERS, main_classes
-from moviekg.pipelines.test_inc_ssp import pipeline_types, llm_pipeline_types
+from moviekg.paper.legacy.config import HEADERS, main_classes
+# from moviekg.pipelines.test_inc_ssp import pipeline_types, llm_pipeline_types
 
 
 def load_metrics_from_file(file_path):
@@ -241,9 +241,10 @@ def plot_growth(df, metrics, kind="bar", references={}):
 
         # numbers 1 to 3
         for stage_idx in range(1, 4):
-            value, nvalue, details = get_reference_value(df, metrics[ax_idx], "stage_"+str(stage_idx))
-            # print(metrics[ax_idx], value)
-            xpos = stage_idx
+            ref = get_reference_value(df, metrics[ax_idx], "stage_"+str(stage_idx))
+            if ref is None:
+                continue
+            value, _nvalue, _details = ref
             if stage_idx == 0:
                 ax.axhline(value, ls="--", color="red")
             else:
@@ -613,7 +614,8 @@ def get_reference_value(df, metric_name, stage):
     df = df[df["metric"] == metric_name]
     df = df[df["stage"] == stage]
     df = df[df["pipeline"] == "reference"]
-    # print(df.to_string())
+    if df.empty:
+        return None
     value = df["value"].values[0]
     nvalue = df["normalized"].values[0]
     details = json.loads(df["details"].values[0])
