@@ -5,8 +5,8 @@ for comparing generated knowledge graphs.
 
 ## Getting started
 
-- Movie benchmark reproduction: `reproduce.md`
-- CLI reference: `cli.md`
+- Movie benchmark: [movie-benchmark.md](movie-benchmark.md)
+- CLI reference: [cli.md](cli.md)
 
 ## CLI
 
