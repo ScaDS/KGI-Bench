@@ -34,9 +34,9 @@ def _paper_output_dir() -> Path:
 #     _eval_result_paths(),
 #     ids=lambda p: str(p.relative_to(moviekg_config.OUTPUT_ROOT)),
 # )
-# def test_eval_results_readable(eval_path):
-#     eval_results = json.loads(eval_path.read_text())
-#     assert eval_results is not None
+def test_eval_results_readable():
+    for eval_path in _eval_result_paths():
+        print(eval_path)
 
 
 def test_create_counts_table():

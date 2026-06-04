@@ -3,7 +3,7 @@
 This benchmark package contains the **dataset definition** and the **evaluation workflow** for the Movie-domain
 incremental KG integration benchmark.
 
-Pipeline **execution** (building the KGs) is handled in the **KGpipe** repository:
+Pipeline **execution** (building the KGs) is handled in the [KGpipe repository](https://github.com/ScaDS/KGpipe/tree/cleanup-eval/experiments/moviekg):
 - KGpipe MovieKG pipelines: `experiments/moviekg/` (pipeline catalog + execution helpers)
 
 ## Dataset overview
@@ -32,7 +32,10 @@ Set at least:
 ### 2) Download datasets
 
 ```bash
+# benchmark data
 make download-datasets
+# pipeline results
+make download-results
 ```
 
 ### 3) Evaluate pipeline outputs (recommended)
@@ -44,7 +47,7 @@ Evaluation is run via the KGI-Bench CLI (Movie preset). It expects KGpipe output
 Run evaluation for all pipeline output directories under the selected output root:
 
 ```bash
-make evaluation
+make eval-all
 ```
 
 Or evaluate a single pipeline:
@@ -56,7 +59,7 @@ make eval-rdf-base
 You can also call the CLI directly:
 
 ```bash
-kgibench evaluate --benchmark movie --bench-data "$DATASET_MEDIUM" "$OUTPUT_DIR/$DATASET_SELECT/rdf_base"
+kgibench evaluate -m CountMetric benchmarks/kgi-bench-movie/data/results_curr/large/rdf_a/stage_3/result.nt
 ```
 
 ## Directory structure

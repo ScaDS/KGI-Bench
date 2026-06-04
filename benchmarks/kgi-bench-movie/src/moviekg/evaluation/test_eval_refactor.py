@@ -25,8 +25,6 @@ from typing import Set
 from kgpipe_eval.utils.kg_utils import Term
 
 import os
-from dotenv import load_dotenv
-load_dotenv()
 
 from kgpipe.io.pipe_out import load_pipe_out, load_stage_out, StageOut
 
@@ -44,6 +42,7 @@ except Exception as e:
 # substract seed from kg_1 and kg_1 from kg_2, or only seed from kg_1 and kg_2
 
 EX_BENCH_DATA_PATH=Path(DATASET_DIR)
+print(EX_BENCH_DATA_PATH)
 
 
 # TODO is a wrapper interface for now, Dataset needs refactor later

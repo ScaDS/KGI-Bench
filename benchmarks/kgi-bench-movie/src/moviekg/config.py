@@ -6,7 +6,7 @@ from kgpipe.common.discovery import discover_entry_points
 from kgpipe.generation.loaders import load_pipeline_catalog
 from kgpipe.datasets.multipart_multisource import load_dataset, Dataset
 
-load_dotenv()
+load_dotenv(override=False)
 discover_entry_points()
 
 PIPELINE_CONFIG=os.getenv("PIPELINE_CONFIG")
@@ -16,7 +16,7 @@ OUTPUT_DIR=os.getenv("OUTPUT_DIR")
 DATASET_SMALL_DIR=os.getenv("DATASET_SMALL")
 DATASET_MEDIUM_DIR=os.getenv("DATASET_MEDIUM")
 DATASET_LARGE_DIR=os.getenv("DATASET_LARGE")
-DATASET_SELECT=os.getenv("DATASET_SELECT")
+DATASET_SELECT=os.getenv("DATASET_SELECT", "small")
 
 if not ONTOLOGY_PATH:
     raise ValueError("MISSING ONTOLOGY PATH")
