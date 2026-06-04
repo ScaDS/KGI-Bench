@@ -31,4 +31,5 @@ site_dir: site
 nav:
   - Home: index.md
   - CLI: cli.md
-  - Reproduce Movie benchmark: reproduce.md
+  - Movie benchmark: movie-benchmark.md
+  - Building docs: building-docs.md

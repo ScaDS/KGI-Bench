@@ -403,9 +403,13 @@ def evaluate_cmd(
             )
             results = KgpipeEvaluator().run(tg, metric_objs, confs)
 
-            out_path = stage_dir / "eval_results.json"
-            out_path.write_text(json.dumps(_results_to_jsonable(results), indent=2))
-            console.print(f"[green]✓ Wrote[/green] {out_path}")
+            if output in None:
+                print(json.dumps(_results_to_jsonable(results), indent=2))
+            else:
+                out_path = stage_dir / "eval_results.json"
+                out_path.parent.mkdir(parents=True, exist_ok=True)
+                out_path.write_text(json.dumps(_results_to_jsonable(results), indent=2))
+                console.print(f"[green]✓ Wrote[/green] {out_path}")
         return
 
     kg_path = _resolve_kg_input(input)
@@ -435,9 +439,9 @@ def evaluate_cmd(
     out_path: Path
     if output is not None:
         out_path = output
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        out_path.write_text(json.dumps(_results_to_jsonable(results), indent=2))
+        console.print(f"[green]✓ Wrote[/green] {out_path}")
     else:
-        out_path = (input / "eval_results.json") if input.is_dir() else Path("eval_results.json")
+        print(json.dumps(_results_to_jsonable(results), indent=2))
 
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    out_path.write_text(json.dumps(_results_to_jsonable(results), indent=2))
-    console.print(f"[green]✓ Wrote[/green] {out_path}")

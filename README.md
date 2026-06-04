@@ -4,7 +4,7 @@
 
 KGI-Bench assesses pipeline outputs (the updated KG) using three complementary quality dimensions: **coverage**, **correctness**, and **consistency**. It also supports auxiliary metrics (structure, runtime, task-level diagnostics) and aggregated scores for ranking pipelines.
 
-- **Paper:** [kgi-bench.pdf](kgi-bench.pdf) — *Evaluation of Pipelines for Data Integration into Knowledge Graphs* (Marvin Hofer, Erhard Rahm, ScaDS.AI / Leipzig University)
+- **Paper:** [Arxiv](https://arxiv.org/pdf/2605.22304) — *Evaluation of Pipelines for Data Integration into Knowledge Graphs* (Marvin Hofer, Erhard Rahm, ScaDS.AI / Leipzig University)
 - **Repository:** https://github.com/ScaDS/KGI-Bench
 - **Datasets:** https://doi.org/10.5281/zenodo.17246357
 
@@ -20,7 +20,7 @@ KGI-Bench closes this gap by providing:
 
 ## Evaluation metrics
 
-Metrics are defined in the paper (Section 4). Implementations used in experiments currently live in [KGpipe](https://github.com/ScaDS/KGpipe); a standalone copy for this repository is planned under `src/kgibench/metrics/`.
+Metrics are defined in the paper (Section 4). Implementations used in experiments currently live in [KGpipe](https://github.com/ScaDS/KGpipe); a mirrored interface is defined under `src/kgibench/metrics/`.
 
 ### Coverage
 
@@ -65,16 +65,13 @@ Per-pipeline scores can be combined by normalizing metrics to \([0,1]\), averagi
 
 ```
 KGI-Bench/
-├── kgi-bench.pdf              # Paper (evaluation framework & KGI-Bench-Movie study)
-├── docs/
-│   └── reproduce.md           # End-to-end reproduction notes
+├── docs/                    # MkDocs site (CLI, movie benchmark pointer)
 ├── benchmarks/
-│   └── kgi-bench-movie/     # Movie-domain benchmark (datasets, pipelines, evaluation)
-│       ├── pipeline.conf    # 12 KGpipe pipeline definitions (RDF / JSON / text)
-│       ├── movie-ontology.ttl
-│       ├── Makefile         # Download data, run pipelines & evaluation
-│       └── src/moviekg/     # Experiment & evaluation code
-└── src/kgibench/metrics/    # Planned home for extracted metric implementations
+│   └── kgi-bench-movie/     # Movie-domain benchmark (datasets, evaluation)
+│       ├── ontology/movie-ontology.ttl
+│       ├── Makefile         # Download data & run evaluation
+│       └── src/moviekg/     # Evaluation helpers
+└── src/kgibench/            # Evaluation framework interface
 ```
 
 ## KGI-Bench-Movie
@@ -93,42 +90,37 @@ The first benchmark instantiation covers the **movie domain** (entities `Film`, 
 - **SSP (single-source type):** three steps, same format each time — six pipeline variants (two per format: base + alternate, plus optional LLM variants).
 - **MSP (multi-source type):** three steps, one format per step (RDF → JSON → text or permutations) — six combined pipelines built from the SSP base variants.
 
-The paper evaluates **12 pipelines** (6 SSP + 6 MSP, using the base variant per format) using [KGpipe](https://github.com/ScaDS/KGpipe). [pipeline.conf](benchmarks/kgi-bench-movie/pipeline.conf) additionally defines alternate and LLM-based variants for extended experiments.
+The paper evaluates **12 pipelines** (6 SSP + 6 MSP, using the base variant per format) using [KGpipe](https://github.com/ScaDS/KGpipe). Pipeline definitions and execution live in [KGpipe `experiments/moviekg`](https://github.com/ScaDS/KGpipe/tree/main/experiments/moviekg).
 
 ### Quick start
 
-See [benchmarks/kgi-bench-movie/README.md](benchmarks/kgi-bench-movie/README.md) and [docs/reproduce.md](docs/reproduce.md).
+See [benchmarks/kgi-bench-movie/README.md](benchmarks/kgi-bench-movie/README.md) for the full evaluation workflow.
 
-**Requirements (Docker workflow):** ~32–64 GB RAM, ~50 GB disk, Docker, Make, `wget`; optional NVIDIA GPU and OpenAI token for LLM pipelines.
+Install the `kgi-bench` package from the repository root (Python 3.12+), e.g. with [uv](https://docs.astral.sh/uv/):
+
+```bash
+cd KGI-Bench
+uv sync
+source .venv/bin/activate
+# optional (embedding / LLM metrics): uv sync --extra ml --extra cpu
+```
+
+**Evaluate pipeline outputs**
 
 ```bash
 cd benchmarks/kgi-bench-movie
-cp docker_env docker.env   # set OPENAI_TOKEN if using LLM pipelines
-make setup_docker
-make run_docker_small      # small dataset: stats, pipelines, evaluation, paper figures
+cp env .env
+make download-datasets    # and/or
+make download-results
+make eval-all
 ```
 
-**Local pipeline / evaluation runs** (without full Docker orchestration):
+Example CLI invocation:
 
 ```bash
-cd benchmarks/kgi-bench-movie
-make pipelines      # run pipeline tests (excludes LLM by default)
-make evaluation     # compute metrics per pipeline stage
-make paper          # generate ranking / figure inputs
+kgibench evaluate -m CountMetric \
+  benchmarks/kgi-bench-movie/data/results/large/rdf_base/stage_3/result.nt
 ```
-
-Example metric invocation via KGpipe CLI:
-
-```bash
-kgpipe eval -c metric_config.yaml \
-  -m ReferenceTripleAlignmentMetricSoftEV \
-  -m entity_count \
-  -m incorrect_relation_direction \
-  ... \
-  data/out/small/rdf_a/stage_3/result.nt
-```
-
-(See [benchmarks/kgi-bench-movie/eval.sh](benchmarks/kgi-bench-movie/eval.sh).)
 
 ## Installation
 

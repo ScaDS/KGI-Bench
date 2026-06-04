@@ -4,33 +4,16 @@ DATASET_URL := https://zenodo.org/record/17246358/files/inc_movie_kg_datasets.ta
 RESULTS_URL := https://zenodo.org/record/17246358/files/inc_movie_kg_results.tar.gz?download=1
 BASE_DIR := ./data
 
-# === Helpers ===
-
-# Load env vars from `.env` (preferred) or `env` (fallback).
-# Usage:
-#   $(LOAD_ENV) <command>
-LOAD_ENV = bash -lc 'set -a; if [ -f .env ]; then . .env; elif [ -f env ]; then . ./env; fi; set +a; '
-
-# Convenience variables inside recipes (after LOAD_ENV):
-# - OUTPUT_ROOT = $${OUTPUT_DIR}/$${DATASET_SELECT}
-# - BENCH_DATA  = dataset root for the selected size
-
 # === Main ===
 
-evaluation:
-	@$(LOAD_ENV) ' \
-	  OUTPUT_ROOT="$$OUTPUT_DIR/$$DATASET_SELECT"; \
-	  if [ "$$DATASET_SELECT" = "small" ]; then BENCH_DATA="$$DATASET_SMALL"; \
-	  elif [ "$$DATASET_SELECT" = "medium" ]; then BENCH_DATA="$$DATASET_MEDIUM"; \
-	  elif [ "$$DATASET_SELECT" = "large" ]; then BENCH_DATA="$$DATASET_LARGE"; \
-	  else echo "Invalid DATASET_SELECT=$$DATASET_SELECT"; exit 1; fi; \
-	  echo "Evaluating all pipelines under $$OUTPUT_ROOT"; \
-	  for d in "$$OUTPUT_ROOT"/*; do \
-	    [ -d "$$d" ] || continue; \
-	    echo "==> $$d"; \
-	    kgibench evaluate --benchmark movie --bench-data "$$BENCH_DATA" "$$d"; \
-	  done \
-	'
+download-all: download-datasets download-results
+
+eval-all: eval-rdf-base eval-rdf-alt eval-rdf-llm eval-json-base eval-json-alt eval-json-llm eval-text-base eval-text-alt eval-msp-all
+
+# === Python Install ===
+
+python-setup:
+	cd ../.. && uv pip install -e .
 
 # === Dataset ===
 
@@ -45,118 +28,59 @@ $(BASE_DIR)/datasets/.extracted: $(BASE_DIR)/datasets.tar.gz
 
 download-datasets: $(BASE_DIR)/datasets/.extracted
 
+$(BASE_DIR)/results.tar.gz:
+	@mkdir -p $(BASE_DIR)
+	@cd $(BASE_DIR) && wget $(RESULTS_URL) -O results.tar.gz
+
+$(BASE_DIR)/results/.extracted: $(BASE_DIR)/results.tar.gz
+	@mkdir -p $(BASE_DIR)/results
+	@cd $(BASE_DIR) && tar -xzf results.tar.gz
+	@touch $(BASE_DIR)/results/.extracted
+
+download-results: $(BASE_DIR)/results/.extracted
+
+# === SEED and REF stats ===
+
 datasets-eval:
 	pytest -v src/moviekg/datasets/test_evaluate_film_data.py
 
 # === RDF ===
 
 eval-rdf-base:
-	@$(LOAD_ENV) ' \
-	  OUTPUT_ROOT="$$OUTPUT_DIR/$$DATASET_SELECT"; \
-	  if [ "$$DATASET_SELECT" = "small" ]; then BENCH_DATA="$$DATASET_SMALL"; \
-	  elif [ "$$DATASET_SELECT" = "medium" ]; then BENCH_DATA="$$DATASET_MEDIUM"; \
-	  elif [ "$$DATASET_SELECT" = "large" ]; then BENCH_DATA="$$DATASET_LARGE"; \
-	  else echo "Invalid DATASET_SELECT=$$DATASET_SELECT"; exit 1; fi; \
-	  pytest -v -s src/moviekg/evaluation/test_eval_refactor.py -k "rdf_base"
-	'
+	DATASET_SELECT=large pytest -v -s src/moviekg/evaluation/test_eval_refactor.py -k "rdf_a" \
 
 eval-rdf-alt:
-	@$(LOAD_ENV) ' \
-	  OUTPUT_ROOT="$$OUTPUT_DIR/$$DATASET_SELECT"; \
-	  if [ "$$DATASET_SELECT" = "small" ]; then BENCH_DATA="$$DATASET_SMALL"; \
-	  elif [ "$$DATASET_SELECT" = "medium" ]; then BENCH_DATA="$$DATASET_MEDIUM"; \
-	  elif [ "$$DATASET_SELECT" = "large" ]; then BENCH_DATA="$$DATASET_LARGE"; \
-	  else echo "Invalid DATASET_SELECT=$$DATASET_SELECT"; exit 1; fi; \
-	  pytest -v -s src/moviekg/evaluation/test_eval_refactor.py -k "rdf_alt"
-	'
+	DATASET_SELECT=large pytest -v -s src/moviekg/evaluation/test_eval_refactor.py -k "rdf_b" \
 
 eval-rdf-llm:
-	@$(LOAD_ENV) ' \
-	  OUTPUT_ROOT="$$OUTPUT_DIR/$$DATASET_SELECT"; \
-	  if [ "$$DATASET_SELECT" = "small" ]; then BENCH_DATA="$$DATASET_SMALL"; \
-	  elif [ "$$DATASET_SELECT" = "medium" ]; then BENCH_DATA="$$DATASET_MEDIUM"; \
-	  elif [ "$$DATASET_SELECT" = "large" ]; then BENCH_DATA="$$DATASET_LARGE"; \
-	  else echo "Invalid DATASET_SELECT=$$DATASET_SELECT"; exit 1; fi; \
-	  pytest -v -s src/moviekg/evaluation/test_eval_refactor.py -k "rdf_llm"
-	'
+	DATASET_SELECT=large pytest -v -s src/moviekg/evaluation/test_eval_refactor.py -k "rdf_c" \
 
 # === JSON ===
 
 eval-json-base:
-	@$(LOAD_ENV) ' \
-	  OUTPUT_ROOT="$$OUTPUT_DIR/$$DATASET_SELECT"; \
-	  if [ "$$DATASET_SELECT" = "small" ]; then BENCH_DATA="$$DATASET_SMALL"; \
-	  elif [ "$$DATASET_SELECT" = "medium" ]; then BENCH_DATA="$$DATASET_MEDIUM"; \
-	  elif [ "$$DATASET_SELECT" = "large" ]; then BENCH_DATA="$$DATASET_LARGE"; \
-	  else echo "Invalid DATASET_SELECT=$$DATASET_SELECT"; exit 1; fi; \
-	  pytest -v -s src/moviekg/evaluation/test_eval_refactor.py -k "json_base"
-	'
+	DATASET_SELECT=large pytest -v -s src/moviekg/evaluation/test_eval_refactor.py -k "json_a"
 
 eval-json-alt:
-	@$(LOAD_ENV) ' \
-	  OUTPUT_ROOT="$$OUTPUT_DIR/$$DATASET_SELECT"; \
-	  if [ "$$DATASET_SELECT" = "small" ]; then BENCH_DATA="$$DATASET_SMALL"; \
-	  elif [ "$$DATASET_SELECT" = "medium" ]; then BENCH_DATA="$$DATASET_MEDIUM"; \
-	  elif [ "$$DATASET_SELECT" = "large" ]; then BENCH_DATA="$$DATASET_LARGE"; \
-	  else echo "Invalid DATASET_SELECT=$$DATASET_SELECT"; exit 1; fi; \
-	  pytest -v -s src/moviekg/evaluation/test_eval_refactor.py -k "json_alt"
-	'
+	DATASET_SELECT=large pytest -v -s src/moviekg/evaluation/test_eval_refactor.py -k "json_b"
 
 eval-json-llm:
-	@$(LOAD_ENV) ' \
-	  OUTPUT_ROOT="$$OUTPUT_DIR/$$DATASET_SELECT"; \
-	  if [ "$$DATASET_SELECT" = "small" ]; then BENCH_DATA="$$DATASET_SMALL"; \
-	  elif [ "$$DATASET_SELECT" = "medium" ]; then BENCH_DATA="$$DATASET_MEDIUM"; \
-	  elif [ "$$DATASET_SELECT" = "large" ]; then BENCH_DATA="$$DATASET_LARGE"; \
-	  else echo "Invalid DATASET_SELECT=$$DATASET_SELECT"; exit 1; fi; \
-	  pytest -v -s src/moviekg/evaluation/test_eval_refactor.py -k "json_llm"
-	'
+	DATASET_SELECT=medium pytest -v -s src/moviekg/evaluation/test_eval_refactor.py -k "json_c"
 
 # === TEXT ===
 
 eval-text-base:
-	@$(LOAD_ENV) ' \
-	  OUTPUT_ROOT="$$OUTPUT_DIR/$$DATASET_SELECT"; \
-	  if [ "$$DATASET_SELECT" = "small" ]; then BENCH_DATA="$$DATASET_SMALL"; \
-	  elif [ "$$DATASET_SELECT" = "medium" ]; then BENCH_DATA="$$DATASET_MEDIUM"; \
-	  elif [ "$$DATASET_SELECT" = "large" ]; then BENCH_DATA="$$DATASET_LARGE"; \
-	  else echo "Invalid DATASET_SELECT=$$DATASET_SELECT"; exit 1; fi; \
-	  pytest -v -s src/moviekg/evaluation/test_eval_refactor.py -k "text_a"
-	'
+	DATASET_SELECT=large pytest -v -s src/moviekg/evaluation/test_eval_refactor.py -k "text_a"
 
 eval-text-alt:
-	@$(LOAD_ENV) ' \
-	  OUTPUT_ROOT="$$OUTPUT_DIR/$$DATASET_SELECT"; \
-	  if [ "$$DATASET_SELECT" = "small" ]; then BENCH_DATA="$$DATASET_SMALL"; \
-	  elif [ "$$DATASET_SELECT" = "medium" ]; then BENCH_DATA="$$DATASET_MEDIUM"; \
-	  elif [ "$$DATASET_SELECT" = "large" ]; then BENCH_DATA="$$DATASET_LARGE"; \
-	  else echo "Invalid DATASET_SELECT=$$DATASET_SELECT"; exit 1; fi; \
-	  pytest -v -s src/moviekg/evaluation/test_eval_refactor.py -k "text_b"
-	'
+	DATASET_SELECT=large pytest -v -s src/moviekg/evaluation/test_eval_refactor.py -k "text_b"
 
 eval-text-llm:
-	@$(LOAD_ENV) ' \
-	  OUTPUT_ROOT="$$OUTPUT_DIR/$$DATASET_SELECT"; \
-	  if [ "$$DATASET_SELECT" = "small" ]; then BENCH_DATA="$$DATASET_SMALL"; \
-	  elif [ "$$DATASET_SELECT" = "medium" ]; then BENCH_DATA="$$DATASET_MEDIUM"; \
-	  elif [ "$$DATASET_SELECT" = "large" ]; then BENCH_DATA="$$DATASET_LARGE"; \
-	  else echo "Invalid DATASET_SELECT=$$DATASET_SELECT"; exit 1; fi; \
-	  pytest -v -s src/moviekg/evaluation/test_eval_refactor.py -k "text_c" \
-	'
+	DATASET_SELECT=medium pytest -v -s src/moviekg/evaluation/test_eval_refactor.py -k "text_c"
 
 # === MSPs ===
 
 eval-msp-all:
-	@$(LOAD_ENV) ' \
-	  OUTPUT_ROOT="$$OUTPUT_DIR/$$DATASET_SELECT"; \
-	  if [ "$$DATASET_SELECT" = "small" ]; then BENCH_DATA="$$DATASET_SMALL"; \
-	  elif [ "$$DATASET_SELECT" = "medium" ]; then BENCH_DATA="$$DATASET_MEDIUM"; \
-	  elif [ "$$DATASET_SELECT" = "large" ]; then BENCH_DATA="$$DATASET_LARGE"; \
-	  else echo "Invalid DATASET_SELECT=$$DATASET_SELECT"; exit 1; fi; \
-	  echo "Evaluating all MSP pipelines under $$OUTPUT_ROOT (dirs with two underscores)"; \
-	  pytest -v -s src/moviekg/evaluation/test_eval_refactor.py -k "test_evaluate_new_multisource_pipeline"; \
-	'
-
+	DATASET_SELECT=large pytest -v -s src/moviekg/evaluation/test_eval_refactor.py -k "test_evaluate_new_multisource_pipeline"
 
 # === Paper (legacy)
 #
@@ -165,5 +89,5 @@ eval-msp-all:
 
 # === Paper (new)
 
-eval-paper-new:
-	pytest -v -s src/moviekg/paper/test_paper_content.py
+paper-content:
+	DATASET_SELECT=large pytest -v -s src/moviekg/paper/test_paper_content.py
