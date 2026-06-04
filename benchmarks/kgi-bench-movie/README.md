@@ -1,55 +1,70 @@
-# Inc Movie KG
+# KGI-Bench Movie (evaluation)
 
-Documentation and experiment code for incremental KG generation and evaluation.
+This benchmark package contains the **dataset definition** and the **evaluation workflow** for the Movie-domain
+incremental KG integration benchmark.
 
+Pipeline **execution** (building the KGs) is handled in the [KGpipe repository](https://github.com/ScaDS/KGpipe/tree/cleanup-eval/experiments/moviekg):
+- KGpipe MovieKG pipelines: `experiments/moviekg/` (pipeline catalog + execution helpers)
 
-# Dataset Overview
+## Dataset overview
 
-- 📊 [Benchmark Datasets](https://doi.org/10.5281/zenodo.17246357)
+- Dataset release: `https://doi.org/10.5281/zenodo.17246357`
+- Sizes:
+  - `small` (100 films) — development
+  - `medium` (1,000 films) — testing
+  - `large` (10,000 films) — benchmarking
+- Formats per split: RDF, JSON, TEXT (+ reference metadata for evaluation)
 
-A benchmark derived from Wikipedia and DBpedia in the movie domain covering the three entities: `Film,Person,Company` described and connected by 23(+2) attributes.
-The dataset consists of the following.
+## Evaluation workflow
 
-Four Splits and three different formats:
-- RDF: RDF from DBpedia, in the three namespaces for seed, reference and source data
-- JSON: json files built from the tree like subgraphs of each film
-- TEXT: abstract text of each film entity from wikipedia
+### 1) Configure environment
 
-Suplmenetary data:
-- reference entity matches: for entity matching eval (rdf, json)
-- reference entity links: for entity linking eval (text)
-- provannce mappings: for tracing json entity mappings
-- refernce key mappings: for tracing json to rdf schema matching
+Copy the template:
 
-Available in three sizes:
-- small 100 films: for development
-- medium 1,000 films: for testing
-- large 10,000 films: for benchmarking
-
-# Running
-
-It is possible to execute the experiemnt in a docker environment.
-Adapt the `docker.env` file 
-and choose the dataset size (small, medium, large)
-
-> LLM tasks are disabled by default to enable them add
-> make pipelines-llm as task in [moviekg_docker.sh](../../scripts/moviekg_docker.sh)
-
-Prepare
-```
-make setup_docker
+```bash
+cp env .env
 ```
 
-Execution of dataset stats, pipelines, evalaution, and paper content generation
+Set at least:
+- `OUTPUT_DIR` and `DATASET_SELECT`
+- `DATASET_SMALL` / `DATASET_MEDIUM` / `DATASET_LARGE` paths
+
+### 2) Download datasets
+
+```bash
+# benchmark data
+make download-datasets
+# pipeline results
+make download-results
 ```
-make run_docker_small
+
+### 3) Evaluate pipeline outputs (recommended)
+
+Evaluation is run via the KGI-Bench CLI (Movie preset). It expects KGpipe outputs under:
+
+`$OUTPUT_DIR/$DATASET_SELECT/<pipeline_name>/stage_<n>/`
+
+Run evaluation for all pipeline output directories under the selected output root:
+
+```bash
+make eval-all
 ```
 
-For more detailed information see also [reproduce.md](../../docs/reproduce.md) or [docs](../../docs/)
+Or evaluate a single pipeline:
 
-# Directory Structure
+```bash
+make eval-rdf-base
+```
 
-## Input Structure
+You can also call the CLI directly:
+
+```bash
+kgibench evaluate -m CountMetric benchmarks/kgi-bench-movie/data/results_curr/large/rdf_a/stage_3/result.nt
+```
+
+## Directory structure
+
+### Input structure (example)
 
 ```
 ├── film_100
@@ -84,30 +99,34 @@ For more detailed information see also [reproduce.md](../../docs/reproduce.md) o
 ├── film_1k[... trunc]
 ```
 
-## Output Structure
+### Output structure (example)
+
+KGpipe produces incremental stage outputs; KGI-Bench writes evaluation results alongside them:
+- `result.nt` / `result_eval.nt` — integrated KG
+- `exec-plan.json`, `exec-report.json` — KGpipe metadata
+- `eval_results.json` — metric results written by `kgibench evaluate`
 
 ```
 ├── small
-│   ├── all_metrics.csv
-│   ├── json_a
+│   ├── json_base
 │   │   ├── stage_1
 │   │   │   ├── exec-plan.json
 │   │   │   ├── exec-report.json
 │   │   │   ├── result.nt
+│   │   │   ├── eval_results.json
 │   │   │   └── tmp/
 │   │   ├── stage_2
 │   │   │   ├── exec-plan.json
 │   │   │   ├── exec-report.json
 │   │   │   ├── result.nt
+│   │   │   ├── eval_results.json
 │   │   │   └── tmp/
 │   │   └── stage_3
 │   │       ├── exec-plan.json
 │   │       ├── exec-report.json
 │   │       ├── result.nt
+│   │       ├── eval_results.json
 │   │       └── tmp/
-│   ├── json_b[... trunc]
-│   ├── paper
-│   │   ├── test_fig....png
-│   │   └── test_tab.....png
+│   ├── json_alt[... trunc]
 └── medium[... trunc]
 ```

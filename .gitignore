@@ -138,5 +138,14 @@ cython_debug/
 .DS_Store
 Thumbs.db
 
+# libraries
+odibel/
+odibel
+kgpipe/
+kgpipe
+
+# KGpipe log
+app.log
+
 # Benchmark artifacts (downloaded / generated)
 benchmarks/**/data/

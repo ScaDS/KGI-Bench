@@ -23,6 +23,8 @@ if not DATASET_SELECT:
 OUTPUT_ROOT = Path(OUTPUT_DIR) / DATASET_SELECT
 (OUTPUT_ROOT / "paper").mkdir(parents=True, exist_ok=True)
 
+
+
 PIPLEINE_NAME_MAP = {
     "json_rdf_text": "JRT",
     "json_text_rdf": "JTR",
@@ -30,19 +32,16 @@ PIPLEINE_NAME_MAP = {
     "rdf_text_json": "RTJ",
     "text_json_rdf": "TJR",
     "text_rdf_json": "TRJ",
-    "json_a": "J_A",
-    "json_b": "J_B",
-    "json_c": "J_C",
-    "json_llm_mapping_v1": "J_C",
+    "json_base": "J_A",
+    "json_alt": "J_B",
+    "json_llm": "J_C",
     "json_baseA": "J_baseA",
-    "rdf_a": "R_A",
-    "rdf_b": "R_B",
-    "rdf_c": "R_C",
-    "rdf_llm_schema_align_v1": "R_C",
-    "text_a": "T_A",
-    "text_b": "T_B",
-    "text_c": "T_C",
-    "text_llm_triple_extract_v1": "T_C",
+    "rdf_base": "R_A",
+    "rdf_alt": "R_B",
+    "rdf_llm": "R_C",
+    "text_base": "T_A",
+    "text_alt": "T_B",
+    "text_llm": "T_C",
     }
 
 def map_pipeline_name_pretty(pipeline_name):
@@ -57,6 +56,80 @@ def map_pipeline_name(pipeline_name):
 def map_metric_name(metric_name):
     return METRIC_NAME_MAP.get(metric_name, metric_name)
 
+
+def _ensure_legacy_all_metrics_csv() -> Path:
+    """
+    Temporary compatibility shim.
+
+    The paper code expects a long-format `all_metrics.csv` with columns in `HEADERS`.
+    The new evaluation writes per-stage `eval_results.json`. Here we generate a minimal
+    long table from those JSON files so the legacy plots/tables can run.
+    """
+    out_csv = OUTPUT_ROOT / "all_metrics.csv"
+    print(f"Checking if {out_csv} exists")
+    if out_csv.exists():
+        return out_csv
+
+    eval_paths = sorted(OUTPUT_ROOT.glob("*/*/eval_results.json"))
+    if not eval_paths:
+        raise FileNotFoundError(
+            f"No eval_results.json found under {OUTPUT_ROOT}. "
+            "Run evaluation first (e.g. `make evaluation` in the benchmark)."
+        )
+
+    rows: list[dict] = []
+    for p in eval_paths:
+        # <pipeline>/stage_<i>/eval_results.json
+        stage_dir = p.parent
+        pipeline_dir = stage_dir.parent
+        pipeline = pipeline_dir.name
+        stage = stage_dir.name
+
+        data = json.loads(p.read_text())
+        for metric_obj in data:
+            metric_key = metric_obj.get("metric")
+            measurements = metric_obj.get("measurements") or []
+            for m in measurements:
+                name = m.get("name")
+                value = m.get("value")
+                unit = m.get("unit")
+
+                details: dict = {}
+                value_out = value
+                normalized_out = value
+                duration_out = 0
+
+                # For complex/dict measurements, store them in details and use 0 as scalar value.
+                if isinstance(value, (dict, list)):
+                    value_out = 0
+                    normalized_out = 0
+                    if name == "class_occurrence" and isinstance(value, dict):
+                        details = {"classes": value}
+                    elif name == "property_occurrence" and isinstance(value, dict):
+                        details = {"properties": value}
+                    else:
+                        details = {"value": value}
+
+                rows.append(
+                    {
+                        "pipeline": pipeline,
+                        "stage": stage,
+                        "aspect": "eval_new",
+                        "metric": str(name),
+                        "value": value_out,
+                        "normalized": normalized_out,
+                        "duration": duration_out,
+                        "details": json.dumps(details, ensure_ascii=False, default=str),
+                    }
+                )
+
+    df = pd.DataFrame(rows)
+    out_csv.parent.mkdir(parents=True, exist_ok=True)
+    df.to_csv(out_csv, index=False)
+    return out_csv
+
+# Legacy compatibility: generate a minimal long-table if missing.
+_ensure_legacy_all_metrics_csv()
 
 def add_REI_precision(metric_df):
     # REI_fscore = 2 * (precision * recall) / (precision + recall)

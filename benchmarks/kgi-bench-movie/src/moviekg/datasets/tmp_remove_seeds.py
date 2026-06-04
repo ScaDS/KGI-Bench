@@ -4,6 +4,8 @@ from moviekg.evaluation.test_eval_refactor import KgBenchData
 for every verified_seed remove in the bench data remove the seed entities and store as verified_entities_no_seed.csv
 """
 
+# TODO remove this file
+
 import pandas as pd
 from pathlib import Path
 

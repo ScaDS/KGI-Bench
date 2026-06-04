@@ -6,71 +6,14 @@ BASE_DIR := ./data
 
 # === Main ===
 
-setup_docker: download-datasets kgpipe_docker kgtools start-services
+download-all: download-datasets download-results
 
-run_docker_small:
-	bash ../../scripts/moviekg_docker.sh $(BASE_DIR) docker.env
+eval-all: eval-rdf-base eval-rdf-alt eval-rdf-llm eval-json-base eval-json-alt eval-json-llm eval-text-base eval-text-alt eval-msp-all
 
-pipelines:
-	pytest -v src/moviekg/pipelines/ -k "not llm"
+# === Python Install ===
 
-pipelines-llm:
-	pytest -v src/moviekg/pipelines/ -k "llm"
-
-evaluation:
-	pytest -v src/moviekg/evaluation/ -k "not llm"
-
-paper:
-	pytest -v src/moviekg/evaluation/test_inc_msp_evaluation.py -k concat;
-	pytest -v src/moviekg/paper/test_figtab.py;
-
-# === Docker ===
-
-$(BASE_DIR)/.kgpipe-docker-built:
-	@cd ../.. && make docker_build
-	touch $@
-
-kgpipe_docker: $(BASE_DIR)/.kgpipe-docker-built
-
-$(BASE_DIR)/kgtools/README.md:
-	@cd $(BASE_DIR) && git clone https://github.com/vehnem/kg-tools.git kgtools
-
-$(BASE_DIR)/kgtools/.paris-docker-built	:
-	@cd $(BASE_DIR)/kgtools/paris && make docker_build
-	touch $@
-
-$(BASE_DIR)/kgtools/.valentine-docker-built:
-	@cd $(BASE_DIR)/kgtools/valentine && make docker_build
-	touch $@
-
-$(BASE_DIR)/kgtools/.pyjedai-docker-built:
-	@cd $(BASE_DIR)/kgtools/pyjedai && make docker_build
-	touch $@
-
-$(BASE_DIR)/kgtools/.corenlp-docker-built:
-	@cd $(BASE_DIR)/kgtools/corenlp && make docker_build
-	touch $@
-
-$(BASE_DIR)/kgtools/.dbpedia-spotlight-docker-built:
-	@cd $(BASE_DIR)/kgtools/dbpedia-spotlight && make docker_build
-	touch $@
-
-$(BASE_DIR)/kgtools/.docker-built: $(BASE_DIR)/kgtools/.paris-docker-built $(BASE_DIR)/kgtools/.valentine-docker-built $(BASE_DIR)/kgtools/.pyjedai-docker-built $(BASE_DIR)/kgtools/.corenlp-docker-built $(BASE_DIR)/kgtools/.dbpedia-spotlight-docker-built
-	touch $@
-
-kgtools_clone: $(BASE_DIR)/kgtools/README.md
-
-kgtools_docker: $(BASE_DIR)/kgtools/.docker-built
-
-kgtools: kgtools_clone kgtools_docker
-
-# === Setup ===
-
-start-services:
-	@cd ../../ && docker compose up -d
-
-clean:
-	rm -rf data;
+python-setup:
+	cd ../.. && uv pip install -e .
 
 # === Dataset ===
 
@@ -85,101 +28,66 @@ $(BASE_DIR)/datasets/.extracted: $(BASE_DIR)/datasets.tar.gz
 
 download-datasets: $(BASE_DIR)/datasets/.extracted
 
+$(BASE_DIR)/results.tar.gz:
+	@mkdir -p $(BASE_DIR)
+	@cd $(BASE_DIR) && wget $(RESULTS_URL) -O results.tar.gz
+
+$(BASE_DIR)/results/.extracted: $(BASE_DIR)/results.tar.gz
+	@mkdir -p $(BASE_DIR)/results
+	@cd $(BASE_DIR) && tar -xzf results.tar.gz
+	@touch $(BASE_DIR)/results/.extracted
+
+download-results: $(BASE_DIR)/results/.extracted
+
+# === SEED and REF stats ===
+
 datasets-eval:
 	pytest -v src/moviekg/datasets/test_evaluate_film_data.py
 
-# === SSPs ===
-
-test-ssp-all:
-	time pytest -s -v src/moviekg/pipelines/test_inc_ssp.py
-
-eval-ssp-all:
-	time pytest -s -v src/moviekg/evaluation/test_inc_ssp_evaluation.py
-
-test-ssp-classic:
-	time pytest -s -v src/moviekg/pipelines/test_inc_ssp.py -k "not llm_"
-
-test-ssp-llm:
-	time pytest -s -v src/moviekg/pipelines/test_inc_ssp.py -k "llm_"
-
-eval-ssp-llm:
-	time pytest -s -v src/moviekg/evaluation/test_inc_ssp_evaluation.py -k "llm_"
-
 # === RDF ===
 
-test-rdf-a:
-	pytest -s -v src/moviekg/pipelines/test_inc_ssp.py -k rdf_a
+eval-rdf-base:
+	DATASET_SELECT=large pytest -v -s src/moviekg/evaluation/test_eval_refactor.py -k "rdf_a" \
 
-eval-rdf-a:
-	pytest -s -v src/moviekg/evaluation/test_inc_ssp_evaluation.py -k rdf_a
+eval-rdf-alt:
+	DATASET_SELECT=large pytest -v -s src/moviekg/evaluation/test_eval_refactor.py -k "rdf_b" \
 
-test-rdf-b:
-	pytest -s -v src/moviekg/pipelines/test_inc_ssp.py -k rdf_b
-
-eval-rdf-b:
-	pytest -s -v src/moviekg/evaluation/test_inc_ssp_evaluation.py -k rdf_b
-
-test-rdf-c:
-	pytest -s -v src/moviekg/pipelines/test_inc_ssp.py -k rdf_llm
-
-eval-rdf-c:
-	pytest -s -v src/moviekg/evaluation/test_inc_ssp_evaluation.py -k rdf_llm
+eval-rdf-llm:
+	DATASET_SELECT=large pytest -v -s src/moviekg/evaluation/test_eval_refactor.py -k "rdf_c" \
 
 # === JSON ===
 
-test-json-a:
-	pytest -s -v src/moviekg/pipelines/test_inc_ssp.py -k json_a
+eval-json-base:
+	DATASET_SELECT=large pytest -v -s src/moviekg/evaluation/test_eval_refactor.py -k "json_a"
 
-eval-json-a:
-	pytest -s -v src/moviekg/evaluation/test_inc_ssp_evaluation.py -k json_a
+eval-json-alt:
+	DATASET_SELECT=large pytest -v -s src/moviekg/evaluation/test_eval_refactor.py -k "json_b"
 
-test-json-b:
-	pytest -s -v src/moviekg/pipelines/test_inc_ssp.py -k json_b
-
-eval-json-b:
-	pytest -s -v src/moviekg/evaluation/test_inc_ssp_evaluation.py -k json_b
-
-test-json-c:
-	pytest -v -s src/moviekg/pipelines/test_inc_ssp.py -k json_llm
-
-eval-json-c:
-	pytest -s -v src/moviekg/evaluation/test_inc_ssp_evaluation.py -k json_llm
+eval-json-llm:
+	DATASET_SELECT=medium pytest -v -s src/moviekg/evaluation/test_eval_refactor.py -k "json_c"
 
 # === TEXT ===
 
-test-text-a:
-	pytest -s -v src/moviekg/pipelines/test_inc_ssp.py -k text_a
+eval-text-base:
+	DATASET_SELECT=large pytest -v -s src/moviekg/evaluation/test_eval_refactor.py -k "text_a"
 
-eval-text-a:
-	pytest -s -v src/moviekg/evaluation/test_inc_ssp_evaluation.py -k text_a
+eval-text-alt:
+	DATASET_SELECT=large pytest -v -s src/moviekg/evaluation/test_eval_refactor.py -k "text_b"
 
-test-text-b:
-	pytest -s -v src/moviekg/pipelines/test_inc_ssp.py -k text_b
-
-eval-text-b:
-	pytest -s -v src/moviekg/evaluation/test_inc_ssp_evaluation.py -k text_b
-
-test-text-c:
-	pytest -s -v src/moviekg/pipelines/test_inc_ssp.py -k text_llm
-
-eval-text-c:
-	pytest -s -v src/moviekg/evaluation/test_inc_ssp_evaluation.py -k text_llm
+eval-text-llm:
+	DATASET_SELECT=medium pytest -v -s src/moviekg/evaluation/test_eval_refactor.py -k "text_c"
 
 # === MSPs ===
 
-test-msp-all:
-	pytest -s -v src/moviekg/pipelines/test_inc_msp.py
-
 eval-msp-all:
-	pytest -s -v src/moviekg/evaluation/test_inc_msp_evaluation.py
+	DATASET_SELECT=large pytest -v -s src/moviekg/evaluation/test_eval_refactor.py -k "test_evaluate_new_multisource_pipeline"
 
-eval-msp-rjt:
-	pytest -s -v src/moviekg/evaluation/test_inc_msp_evaluation.py -k rdf-json-text
+# === Paper (legacy)
+#
+# Paper artifacts are currently driven by the legacy CSV aggregation workflow.
+# Keep these targets only if you still rely on `all_metrics.csv`.
 
-# === Paper ===
+# === Paper (new)
 
-concatenate-metrics:
-	pytest -s -v src/moviekg/evaluation/test_inc_ssp_evaluation.py -k test_concatenate_long_table_rows
-
-paper-figtab:
-	pytest -s -v src/moviekg/paper/test_figtab.py
+paper-content:
+	DATASET_SELECT=large pytest -v -s src/moviekg/paper/test_paper_content.py

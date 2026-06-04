@@ -1,7 +1,7 @@
 import pandas as pd
 import json
 import numpy as np
-from moviekg.paper.config import SEM_METRIC_SHORT_NAMES
+from moviekg.paper.legacy.config import SEM_METRIC_SHORT_NAMES
 from moviekg.paper.helpers.helpers import load_metrics_from_file
 from moviekg.config import OUTPUT_ROOT
 
