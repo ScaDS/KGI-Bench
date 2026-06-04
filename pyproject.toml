@@ -13,14 +13,11 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "kgcore @ git+https://github.com/Vehnem/kgcore.git",
-    "KGpipe @ git+https://github.com/ScaDS/KGpipe.git",
+    "kgcore @ git+https://github.com/ScaDS/KGpipe.git",
 ]
 
 [project.optional-dependencies]
 dev = ["pytest", "pytest-mock", "pytest-cov", "ruff", "black"]
-docs = [
-    "mkdocs-material",
-]
 cpu = [
     "torch",
     "torchvision",
@@ -72,19 +69,19 @@ explicit = true
 
 [tool.setuptools.packages.find]
 where = ["src"]
-include = ["kgibench*"]
+include = ["kgpipe*"]
 
 [tool.setuptools.package-dir]
 "" = "src" 
 
 [tool.setuptools.package-data]
-kgibench = ["*.yaml", "*.yml"]
+kgpipe = ["*.yaml", "*.yml"]
 
 [project.scripts]
-kgibench = "kgibench.cli.main:cli"
+kgpipe = "kgpipe.cli.main:cli"
 
 [tool.coverage.run]
-source = ["src/kgibench"]
+source = ["src/kgpipe"]
 omit = [
     "*/tests/*",
     "*/test_*",

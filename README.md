@@ -4,7 +4,7 @@
 
 KGI-Bench assesses pipeline outputs (the updated KG) using three complementary quality dimensions: **coverage**, **correctness**, and **consistency**. It also supports auxiliary metrics (structure, runtime, task-level diagnostics) and aggregated scores for ranking pipelines.
 
-- **Paper:** [Arxiv](https://arxiv.org/pdf/2605.22304) — *Evaluation of Pipelines for Data Integration into Knowledge Graphs* (Marvin Hofer, Erhard Rahm, ScaDS.AI / Leipzig University)
+- **Paper:** [kgi-bench.pdf](kgi-bench.pdf) — *Evaluation of Pipelines for Data Integration into Knowledge Graphs* (Marvin Hofer, Erhard Rahm, ScaDS.AI / Leipzig University)
 - **Repository:** https://github.com/ScaDS/KGI-Bench
 - **Datasets:** https://doi.org/10.5281/zenodo.17246357
 
@@ -20,7 +20,7 @@ KGI-Bench closes this gap by providing:
 
 ## Evaluation metrics
 
-Metrics are defined in the paper (Section 4). Implementations used in experiments currently live in [KGpipe](https://github.com/ScaDS/KGpipe); a mirrored interface is defined under `src/kgibench/metrics/`.
+Metrics are defined in the paper (Section 4). Implementations used in experiments currently live in [KGpipe](https://github.com/ScaDS/KGpipe); a standalone copy for this repository is planned under `src/kgibench/metrics/`.
 
 ### Coverage
 
@@ -71,10 +71,10 @@ KGI-Bench/
 ├── benchmarks/
 │   └── kgi-bench-movie/     # Movie-domain benchmark (datasets, pipelines, evaluation)
 │       ├── pipeline.conf    # 12 KGpipe pipeline definitions (RDF / JSON / text)
-│       ├── ontology/movie-ontology.ttl
+│       ├── movie-ontology.ttl
 │       ├── Makefile         # Download data, run pipelines & evaluation
 │       └── src/moviekg/     # Experiment & evaluation code
-└── src/kgibench/            # Evaluation framework interface
+└── src/kgibench/metrics/    # Planned home for extracted metric implementations
 ```
 
 ## KGI-Bench-Movie
@@ -99,21 +99,20 @@ The paper evaluates **12 pipelines** (6 SSP + 6 MSP, using the base variant per 
 
 See [benchmarks/kgi-bench-movie/README.md](benchmarks/kgi-bench-movie/README.md) and [docs/reproduce.md](docs/reproduce.md).
 
-
-Install the `kgi-bench` package from the repository root (Python 3.12+), e.g. with [uv](https://docs.astral.sh/uv/):
-
-```bash
-cd KGI-Bench
-uv sync
-source .venv/bin/activate
-# optional (embedding / LLM metrics): uv sync --extra ml --extra cpu
-```
-
-**Local pipeline / evaluation runs**
+**Requirements (Docker workflow):** ~32–64 GB RAM, ~50 GB disk, Docker, Make, `wget`; optional NVIDIA GPU and OpenAI token for LLM pipelines.
 
 ```bash
 cd benchmarks/kgi-bench-movie
-make download      # run pipeline tests (excludes LLM by default)
+cp docker_env docker.env   # set OPENAI_TOKEN if using LLM pipelines
+make setup_docker
+make run_docker_small      # small dataset: stats, pipelines, evaluation, paper figures
+```
+
+**Local pipeline / evaluation runs** (without full Docker orchestration):
+
+```bash
+cd benchmarks/kgi-bench-movie
+make pipelines      # run pipeline tests (excludes LLM by default)
 make evaluation     # compute metrics per pipeline stage
 make paper          # generate ranking / figure inputs
 ```
@@ -121,9 +120,12 @@ make paper          # generate ranking / figure inputs
 Example metric invocation via KGpipe CLI:
 
 ```bash
-kgibench \
-  -m CountMetric \
-  data/results/large/rdf_a/stage_3/result.nt
+kgpipe eval -c metric_config.yaml \
+  -m ReferenceTripleAlignmentMetricSoftEV \
+  -m entity_count \
+  -m incorrect_relation_direction \
+  ... \
+  data/out/small/rdf_a/stage_3/result.nt
 ```
 
 (See [benchmarks/kgi-bench-movie/eval.sh](benchmarks/kgi-bench-movie/eval.sh).)
