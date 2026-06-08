@@ -1,7 +1,6 @@
 .PHONY:
 
-DATASET_URL := https://zenodo.org/record/17246358/files/inc_movie_kg_datasets.tar.gz?download=1
-RESULTS_URL := https://zenodo.org/record/17246358/files/inc_movie_kg_results.tar.gz?download=1
+ZENODO_RECORD := 17246357
 BASE_DIR := ./data
 
 # === Main ===
@@ -19,7 +18,9 @@ python-setup:
 
 $(BASE_DIR)/datasets.tar.gz:
 	@mkdir -p $(BASE_DIR)
-	@cd $(BASE_DIR) && wget $(DATASET_URL) -O datasets.tar.gz
+	@cd $(BASE_DIR) && wget "$$(curl -sL https://zenodo.org/api/records/$(ZENODO_RECORD) \
+	  | jq -r '.files[] | select(.key=="inc_movie_kg_datasets.tar.gz") | .links.self')" \
+	  -O datasets.tar.gz
 
 $(BASE_DIR)/datasets/.extracted: $(BASE_DIR)/datasets.tar.gz
 	@mkdir -p $(BASE_DIR)/datasets
@@ -30,7 +31,9 @@ download-datasets: $(BASE_DIR)/datasets/.extracted
 
 $(BASE_DIR)/results.tar.gz:
 	@mkdir -p $(BASE_DIR)
-	@cd $(BASE_DIR) && wget $(RESULTS_URL) -O results.tar.gz
+	@cd $(BASE_DIR) && wget "$$(curl -sL https://zenodo.org/api/records/$(ZENODO_RECORD) \
+	  | jq -r '.files[] | select(.key=="inc_movie_kg_results.tar.gz") | .links.self')" \
+	  -O results.tar.gz
 
 $(BASE_DIR)/results/.extracted: $(BASE_DIR)/results.tar.gz
 	@mkdir -p $(BASE_DIR)/results
@@ -53,7 +56,7 @@ eval-rdf-alt:
 	DATASET_SELECT=large pytest -v -s src/moviekg/evaluation/test_eval_refactor.py -k "rdf_b" \
 
 eval-rdf-llm:
-	DATASET_SELECT=large pytest -v -s src/moviekg/evaluation/test_eval_refactor.py -k "rdf_c" \
+	DATASET_SELECT=large pytest -v -s src/moviekg/evaluation/test_eval_refactor.py -k "rdf_llm" \
 
 # === JSON ===
 
@@ -64,7 +67,7 @@ eval-json-alt:
 	DATASET_SELECT=large pytest -v -s src/moviekg/evaluation/test_eval_refactor.py -k "json_b"
 
 eval-json-llm:
-	DATASET_SELECT=medium pytest -v -s src/moviekg/evaluation/test_eval_refactor.py -k "json_c"
+	DATASET_SELECT=medium pytest -v -s src/moviekg/evaluation/test_eval_refactor.py -k "json_llm"
 
 # === TEXT ===
 
@@ -75,7 +78,7 @@ eval-text-alt:
 	DATASET_SELECT=large pytest -v -s src/moviekg/evaluation/test_eval_refactor.py -k "text_b"
 
 eval-text-llm:
-	DATASET_SELECT=medium pytest -v -s src/moviekg/evaluation/test_eval_refactor.py -k "text_c"
+	DATASET_SELECT=medium pytest -v -s src/moviekg/evaluation/test_eval_refactor.py -k "text_llm"
 
 # === MSPs ===
 
