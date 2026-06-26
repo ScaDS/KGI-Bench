@@ -7,6 +7,7 @@ KGI-Bench assesses pipeline outputs (the updated KG) using three complementary q
 - **Paper:** [Arxiv](https://arxiv.org/pdf/2605.22304) — *Evaluation of Pipelines for Data Integration into Knowledge Graphs* (Marvin Hofer, Erhard Rahm, ScaDS.AI / Leipzig University)
 - **Repository:** https://github.com/ScaDS/KGI-Bench
 - **Datasets:** https://doi.org/10.5281/zenodo.17246357
+- **(WIP) Other Domains** https://scads.github.io/ODIBEL/kgi_data/
 
 ## Motivation
 
